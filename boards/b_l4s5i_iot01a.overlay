@@ -1,0 +1,11 @@
+/{
+	aliases {
+		tempsensor = &hts221;
+	};
+};
+
+&i2c2{
+	hts221: hts221@5f{
+	status = "okay";
+	};
+};
