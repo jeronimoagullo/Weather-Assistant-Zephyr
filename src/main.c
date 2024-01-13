@@ -61,9 +61,9 @@ void sampling_work_handler(struct k_work *work){
 		LOG_ERR("sensor get SENSOR_CHAN_HUMIDITY failed. Error: %d", rc);
 	}
 
-	LOG_INF("Temperature: %d.%d. Humidity: %d.%d", 
-				temperature_SV.val1, temperature_SV.val2/10000,
-				humidity_SV.val1, humidity_SV.val2/10000);
+	LOG_INF("Temperature: %.02fºC. Humidity: %.02f%%", 
+				sensor_value_to_double(&temperature_SV),
+				sensor_value_to_double(&humidity_SV));
 }
 
 K_WORK_DEFINE(sampling_work, sampling_work_handler);
@@ -132,13 +132,11 @@ extern void thread_display(void* v1, void *v2, void *v3){
 		cfb_print(display_device, "Assistant",0,height);
 
 		// Display temperature in line 3
-		sprintf(buf, "%d.%dC", 
-				temperature_SV.val1, temperature_SV.val2/10000);
+		sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
 		cfb_print(display_device, buf, 0, 2 * height);
 
 		// Display humidity in line 4
-		sprintf(buf, "%d.%d%%", 
-				humidity_SV.val1, humidity_SV.val2/10000);
+		sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
 		cfb_print(display_device, buf, 0, 3 * height);
 
 		// Finalize frame to load it into RAM to be displayed
