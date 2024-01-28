@@ -61,6 +61,19 @@ west init -m https://github.com/zephyrproject-rtos/zephyr
 west update
 ```
 
+## 🎯 Configuration
+In order to use the WIFI interface, you need to set your WIFI setting in the `src/wifi.c` file. The SSID and password must be specified in the following code:
+
+```c
+// Wifi parameters
+wifi_conn_params.ssid = "<your_ssid>";
+wifi_conn_params.ssid_length = strlen("<your_ssid>");
+wifi_conn_params.psk  = "<your_password>";
+wifi_conn_params.psk_length  = strlen("<your_password>");
+wifi_conn_params.channel = WIFI_CHANNEL_ANY;
+wifi_conn_params.security = WIFI_SECURITY_TYPE_PSK ;
+```
+
 ## 🛠️ Build the project
 
 Choose your board by running:
@@ -86,6 +99,6 @@ west flash
 - [x] based code for STM32L4S5 board (basic Zephyr structure)
 - [x] Read temperature and humidty from bme280 sensor 
 - [x] Display local ambient conditions in ssd1306 display
-- [ ] Internet connection for STM32L4S5
+- [x] Internet connection for STM32L4S5
 - [ ] Get weather condition from HTTP API
 - [ ] Display weather condition and local ambient conditions in the display

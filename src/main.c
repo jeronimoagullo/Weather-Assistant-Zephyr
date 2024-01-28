@@ -19,6 +19,7 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 #include <zephyr/display/cfb.h>
 #include "cfb_mono_04B.h"
 #include "cfb_mono_COMICBD.h"
+#include "wifi.h"
 
 #define MAX_NUM_FONT_SIZES 3
 
@@ -117,10 +118,6 @@ int main(void)
 	uint8_t width, height;
 	uint8_t ppt;
 
-	/* Init the sensor variables */
-	memset(&temperature_SV, 0, sizeof(struct sensor_value));
-	memset(&humidity_SV, 0, sizeof(struct sensor_value));
-	
 	/* Init display */
 	display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	if (!device_is_ready(display_device)) {
@@ -129,19 +126,6 @@ int main(void)
 	} else {
 		LOG_INF("Display %s is ready", display_device->name);
 	}
-
-	/* Init temperature and humidity sensor */
-	if (!device_is_ready(temp_humd_device)) {
-		LOG_ERR("Sensor %s is not ready", temp_humd_device->name);
-	} else {
-		LOG_INF("Sensor %s is ready", temp_humd_device->name);
-	}
-
-	/* Init the sampling timer */
-	k_timer_init(&sampling_timer, sampling_function, NULL);
-
-	/* start the sampling with period of 500 ms */
-	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
 
 	/* Init routing for display */
 	if (display_set_pixel_format(display_device, PIXEL_FORMAT_MONO10) != 0) {
@@ -198,6 +182,26 @@ int main(void)
 							thread_display,
 							NULL, NULL, NULL,
 							THREAD_DISPLAY_PRIORITY, 0, K_MSEC(2000));
+
+
+	/* Init the sensor variables */
+	memset(&temperature_SV, 0, sizeof(struct sensor_value));
+	memset(&humidity_SV, 0, sizeof(struct sensor_value));
+
+	/* Init temperature and humidity sensor */
+	if (!device_is_ready(temp_humd_device)) {
+		LOG_ERR("Sensor %s is not ready", temp_humd_device->name);
+	} else {
+		LOG_INF("Sensor %s is ready", temp_humd_device->name);
+	}
+
+	/* Init the sampling timer */
+	k_timer_init(&sampling_timer, sampling_function, NULL);
+
+	/* start the sampling with period of 500 ms */
+	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
+
+	init_wifi();
 
 	LOG_INF("end of main");
 
