@@ -17,6 +17,8 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/display/cfb.h>
+#include "cfb_mono_04B.h"
+#include "cfb_mono_COMICBD.h"
 
 #define MAX_NUM_FONT_SIZES 3
 
@@ -78,12 +80,70 @@ extern void sampling_function(struct k_timer *timer_id){
 }
 
 extern void thread_display(void* v1, void *v2, void *v3){
+	uint8_t width, height;
+	char buf[20];
 
+	// get display width and height of font with index 0
+	cfb_get_font_size(display_device, 0, &width, &height);
+
+	while (1) {
+		cfb_framebuffer_clear(display_device, false);
+		cfb_framebuffer_set_font(display_device, 0);
+
+		// Display Weather Assistant in lines 1 and 2
+		cfb_print(display_device, ">>Ambient:",0,0);
+
+		cfb_framebuffer_set_font(display_device, 1);
+
+		// Display temperature in line 3
+		sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
+		cfb_print(display_device, buf, 0, 2 * height);
+
+		// Display humidity in line 4
+		sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
+		cfb_print(display_device, buf, 0, 3 * height);
+
+		// Finalize frame to load it into RAM to be displayed
+		cfb_framebuffer_finalize(display_device);
+		
+		k_msleep(500);
+	}
+}
+
+int main(void)
+{
 	uint16_t x_res, y_res;
 	uint16_t rows, cols;
 	uint8_t width, height;
 	uint8_t ppt;
 
+	/* Init the sensor variables */
+	memset(&temperature_SV, 0, sizeof(struct sensor_value));
+	memset(&humidity_SV, 0, sizeof(struct sensor_value));
+	
+	/* Init display */
+	display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+	if (!device_is_ready(display_device)) {
+		LOG_ERR("Display %s not found. Aborting sample.",
+			display_device->name);
+	} else {
+		LOG_INF("Display %s is ready", display_device->name);
+	}
+
+	/* Init temperature and humidity sensor */
+	if (!device_is_ready(temp_humd_device)) {
+		LOG_ERR("Sensor %s is not ready", temp_humd_device->name);
+	} else {
+		LOG_INF("Sensor %s is ready", temp_humd_device->name);
+	}
+
+	/* Init the sampling timer */
+	k_timer_init(&sampling_timer, sampling_function, NULL);
+
+	/* start the sampling with period of 500 ms */
+	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
+
+	/* Init routing for display */
 	if (display_set_pixel_format(display_device, PIXEL_FORMAT_MONO10) != 0) {
 		if (display_set_pixel_format(display_device, PIXEL_FORMAT_MONO01) != 0) {
 			LOG_ERR("Failed to set required pixel format");
@@ -121,66 +181,23 @@ extern void thread_display(void* v1, void *v2, void *v3){
 
 	// Set font kerning (spacing between individual letters).
 	cfb_set_kerning(display_device, 0);
-	char buf[20];
 
-	while (1) {
-		cfb_framebuffer_clear(display_device, false);
-		cfb_framebuffer_set_font(display_device, 0);
+	// Display welcome message
+	cfb_framebuffer_clear(display_device, false);
+	k_msleep(100);
 
-		// Display Weather Assistant in lines 1 and 2
-		cfb_print(display_device, "Weather",0,0);
-		cfb_print(display_device, "Assistant",0,height);
-
-		// Display temperature in line 3
-		sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
-		cfb_print(display_device, buf, 0, 2 * height);
-
-		// Display humidity in line 4
-		sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
-		cfb_print(display_device, buf, 0, 3 * height);
-
-		// Finalize frame to load it into RAM to be displayed
-		cfb_framebuffer_finalize(display_device);
-		
-		k_msleep(500);
-	}
-}
-
-int main(void)
-{
-	/* Init the sensor variables */
-	memset(&temperature_SV, 0, sizeof(struct sensor_value));
-	memset(&humidity_SV, 0, sizeof(struct sensor_value));
-	
-	/* Init display */
-	display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
-	if (!device_is_ready(display_device)) {
-		LOG_ERR("Display %s not found. Aborting sample.",
-			display_device->name);
-	} else {
-		LOG_INF("Display %s is ready", display_device->name);
-	}
-
-	/* Init temperature and humidity sensor */
-	if (!device_is_ready(temp_humd_device)) {
-		LOG_ERR("Sensor %s is not ready", temp_humd_device->name);
-	} else {
-		LOG_INF("Sensor %s is ready", temp_humd_device->name);
-	}
-
-	/* Init the sampling timer */
-	k_timer_init(&sampling_timer, sampling_function, NULL);
-
-	/* start the sampling with period of 500 ms */
-	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
+	cfb_framebuffer_set_font(display_device, 0);
+	cfb_print(display_device, "Weather", 0, 0);
+	cfb_print(display_device, "Assistant!", 0, height);
+	cfb_print(display_device, "By", 0, 2 * height);
+	cfb_print(display_device, "Jeronimo", (x_res - 8 * width), 3 * height);
+	cfb_framebuffer_finalize(display_device);
 
 	k_tid_t idThreadDisplay = k_thread_create(&thread_display_data, display_stack_area,
-                                K_THREAD_STACK_SIZEOF(display_stack_area),
-                                thread_display,
-                                NULL, NULL, NULL,
-                                THREAD_DISPLAY_PRIORITY, 0, K_NO_WAIT);
-
-    k_thread_start(idThreadDisplay);
+							K_THREAD_STACK_SIZEOF(display_stack_area),
+							thread_display,
+							NULL, NULL, NULL,
+							THREAD_DISPLAY_PRIORITY, 0, K_MSEC(2000));
 
 	LOG_INF("end of main");
 

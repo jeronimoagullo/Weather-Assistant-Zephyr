@@ -84,8 +84,8 @@ west flash
 
 ## 📅 TODO list
 - [x] based code for STM32L4S5 board (basic Zephyr structure)
-- [ ] Read temperature and humidty from bme280 sensor 
-- [ ] Display local ambient conditions in ssd1306 display
+- [x] Read temperature and humidty from bme280 sensor 
+- [x] Display local ambient conditions in ssd1306 display
 - [ ] Internet connection for STM32L4S5
 - [ ] Get weather condition from HTTP API
 - [ ] Display weather condition and local ambient conditions in the display
