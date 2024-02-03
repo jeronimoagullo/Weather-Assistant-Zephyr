@@ -20,6 +20,7 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 #include "cfb_mono_04B.h"
 #include "cfb_mono_COMICBD.h"
 #include "wifi.h"
+#include "open_meteo_http.h"
 
 #define MAX_NUM_FONT_SIZES 3
 
@@ -202,6 +203,8 @@ int main(void)
 	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
 
 	init_wifi();
+
+	http_get_open_meteo_forcast();
 
 	LOG_INF("end of main");
 

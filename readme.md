@@ -100,5 +100,6 @@ west flash
 - [x] Read temperature and humidty from bme280 sensor 
 - [x] Display local ambient conditions in ssd1306 display
 - [x] Internet connection for STM32L4S5
-- [ ] Get weather condition from HTTP API
+- [x] Get weather condition from HTTP API: open-meteo
+- [ ] display manager to change views pressing a button
 - [ ] Display weather condition and local ambient conditions in the display
