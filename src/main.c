@@ -16,6 +16,7 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/display/cfb.h>
 #include "cfb_mono_04B.h"
 #include "cfb_mono_COMICBD.h"
@@ -26,6 +27,13 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 
 #define TEMP_SENSOR DT_ALIAS(tempsensor)
 const struct device *temp_humd_device = DEVICE_DT_GET(TEMP_SENSOR);
+
+#define CTRL_BUTTON DT_ALIAS(sw0)
+const struct device *ctrl_button = DEVICE_DT_GET(CTRL_BUTTON);
+
+static const struct gpio_dt_spec button = 
+				GPIO_DT_SPEC_GET_OR(CTRL_BUTTON, gpios,{0});
+static struct gpio_callback button_cb_data;
 
 const struct device *display_device;
 
@@ -39,6 +47,19 @@ struct sensor_value temperature_SV;
 struct sensor_value humidity_SV;
 
 struct k_timer sampling_timer;
+
+/**
+ * @brief button callback
+ * 
+ * @param dev 
+ * @param cb 
+ * @param pins 
+ */
+void button_pressed(const struct device *dev, struct gpio_callback *cb,
+		    uint32_t pins)
+{
+	LOG_INF("Button pressed at %" PRIu32 "", k_cycle_get_32());
+}
 
 /**
  * @brief work handler for sampling timer. it is needed since 
@@ -118,6 +139,32 @@ int main(void)
 	uint16_t rows, cols;
 	uint8_t width, height;
 	uint8_t ppt;
+	int ret;
+
+	if (!gpio_is_ready_dt(&button)) {
+		LOG_ERR("Error: button device %s is not ready",
+		       button.port->name);
+		return 0;
+	}
+
+	ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+	if (gpio_pin_configure_dt(&button, GPIO_INPUT)) {
+		LOG_ERR("Error %d: failed to configure %s pin %d",
+		       ret, button.port->name, button.pin);
+		return 0;
+	}
+
+	ret = gpio_pin_interrupt_configure_dt(&button,
+					      GPIO_INT_EDGE_TO_ACTIVE);
+	if (ret != 0) {
+		LOG_ERR("Error %d: failed to configure interrupt on %s pin %d",
+			ret, button.port->name, button.pin);
+		return 0;
+	}
+
+	gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
+	gpio_add_callback(button.port, &button_cb_data);
+	
 
 	/* Init display */
 	display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));

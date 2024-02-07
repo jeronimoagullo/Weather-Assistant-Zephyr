@@ -101,5 +101,6 @@ west flash
 - [x] Display local ambient conditions in ssd1306 display
 - [x] Internet connection for STM32L4S5
 - [x] Get weather condition from HTTP API: open-meteo
+- [x] Added a button
 - [ ] display manager to change views pressing a button
 - [ ] Display weather condition and local ambient conditions in the display

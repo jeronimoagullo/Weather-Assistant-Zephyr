@@ -94,6 +94,8 @@ void http_get_open_meteo_forcast(void){
 	response[len] = 0;
 	LOG_INF("Response:\n%s\n", response);
 
+	//TODO: Parse json response into variables
+
 	(void)close(sock);
 	LOG_INF("socket closed");
 	return;
