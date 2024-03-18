@@ -18,35 +18,27 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/display/cfb.h>
+
 #include "cfb_mono_04B.h"
 #include "cfb_mono_COMICBD.h"
 #include "wifi.h"
 #include "open_meteo_http.h"
 
-#define MAX_NUM_FONT_SIZES 3
-
+/* Definition of temperature and humidity sensor */
 #define TEMP_SENSOR DT_ALIAS(tempsensor)
 const struct device *temp_humd_device = DEVICE_DT_GET(TEMP_SENSOR);
-
-#define CTRL_BUTTON DT_ALIAS(sw0)
-const struct device *ctrl_button = DEVICE_DT_GET(CTRL_BUTTON);
-
-static const struct gpio_dt_spec button = 
-				GPIO_DT_SPEC_GET_OR(CTRL_BUTTON, gpios,{0});
-static struct gpio_callback button_cb_data;
-
-const struct device *display_device;
-
-/* Defining display stack area */
-#define DISPLAY_STACK_SIZE 512
-#define THREAD_DISPLAY_PRIORITY 5
-K_THREAD_STACK_DEFINE(display_stack_area, DISPLAY_STACK_SIZE);
-struct k_thread thread_display_data;
-
 struct sensor_value temperature_SV; 
 struct sensor_value humidity_SV;
-
 struct k_timer sampling_timer;
+
+/* Definition of button to navigate through different display windows */
+#define CTRL_BUTTON DT_ALIAS(sw0)
+const struct device *ctrl_button = DEVICE_DT_GET(CTRL_BUTTON);
+static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(CTRL_BUTTON, gpios,{0});
+static struct gpio_callback button_cb_data;
+
+/* Definition of display device */
+const struct device *display_device;
 
 /**
  * @brief button callback
@@ -102,39 +94,11 @@ extern void sampling_function(struct k_timer *timer_id){
 	k_work_submit(&sampling_work);
 }
 
-extern void thread_display(void* v1, void *v2, void *v3){
-	uint8_t width, height;
-	char buf[20];
-
-	// get display width and height of font with index 0
-	cfb_get_font_size(display_device, 0, &width, &height);
-
-	while (1) {
-		cfb_framebuffer_clear(display_device, false);
-		cfb_framebuffer_set_font(display_device, 0);
-
-		// Display Weather Assistant in lines 1 and 2
-		cfb_print(display_device, ">>Ambient:",0,0);
-
-		cfb_framebuffer_set_font(display_device, 1);
-
-		// Display temperature in line 3
-		sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
-		cfb_print(display_device, buf, 0, 2 * height);
-
-		// Display humidity in line 4
-		sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
-		cfb_print(display_device, buf, 0, 3 * height);
-
-		// Finalize frame to load it into RAM to be displayed
-		cfb_framebuffer_finalize(display_device);
-		
-		k_msleep(500);
-	}
-}
-
-int main(void)
-{
+/**
+ * @brief Init function to initialize peripherals, timer and threads
+ *
+ */
+int init_peripherals(void){
 	uint16_t x_res, y_res;
 	uint16_t rows, cols;
 	uint8_t width, height;
@@ -225,13 +189,6 @@ int main(void)
 	cfb_print(display_device, "Jeronimo", (x_res - 8 * width), 3 * height);
 	cfb_framebuffer_finalize(display_device);
 
-	k_tid_t idThreadDisplay = k_thread_create(&thread_display_data, display_stack_area,
-							K_THREAD_STACK_SIZEOF(display_stack_area),
-							thread_display,
-							NULL, NULL, NULL,
-							THREAD_DISPLAY_PRIORITY, 0, K_MSEC(2000));
-
-
 	/* Init the sensor variables */
 	memset(&temperature_SV, 0, sizeof(struct sensor_value));
 	memset(&humidity_SV, 0, sizeof(struct sensor_value));
@@ -249,10 +206,27 @@ int main(void)
 	/* start the sampling with period of 500 ms */
 	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
 
-	init_wifi();
+	//init_wifi();
 
-	http_get_open_meteo_forcast();
+	//http_get_open_meteo_forcast();
 
+}
+
+
+int main(void)
+{
+	int ret = init_peripherals();
+
+	ret = ret & start_display_fsm(display_device, height, 
+						temperature_SV, humidity_SV);
+
+	if(ret == 0){
+		LOG_INF("Started display fsm");
+	} else {
+		LOG_ERR("Error during initialization");
+		//TODO: go ahead even if there is no wifi
+	}
+	
 	LOG_INF("end of main");
 
 	return 0;
