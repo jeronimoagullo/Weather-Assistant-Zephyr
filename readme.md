@@ -84,7 +84,7 @@ west build -b <your_board>
 
 The first version of the weather assistant is developed for STM32L4S5 board. Then, run the following command:
 ```
-west build -b b_l4s5i_iot01a
+west build -b b_l4s5i_iot01a -- -DSHIELD=ssd1306_128x64
 ```
 
 ## ⚡️ Flash

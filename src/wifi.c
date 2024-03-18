@@ -78,10 +78,10 @@ void init_wifi(){
 	static struct wifi_connect_req_params wifi_conn_params;
 
     // Wifi parameters
-	wifi_conn_params.ssid = "<your_ssid>";
-	wifi_conn_params.ssid_length = strlen("<your_ssid>");
-	wifi_conn_params.psk  = "<your_password>";
-	wifi_conn_params.psk_length  = strlen("<your_password>");
+	wifi_conn_params.ssid = "LaMadriguera";
+	wifi_conn_params.ssid_length = strlen("LaMadriguera");
+	wifi_conn_params.psk  = "1dos3_Conejo";
+	wifi_conn_params.psk_length  = strlen("1dos3_Conejo");
 	wifi_conn_params.channel = WIFI_CHANNEL_ANY;
 	wifi_conn_params.security = WIFI_SECURITY_TYPE_PSK ;
 

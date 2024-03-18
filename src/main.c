@@ -48,6 +48,17 @@ struct sensor_value humidity_SV;
 
 struct k_timer sampling_timer;
 
+enum display_fsm_st {
+	SENSOR_VALUE_DISPLAY_ST = 0,
+	FORCAST_1_DISPLAY_ST,
+	FPRCAST_2_DISPLAY_ST
+};
+
+static enum display_fsm_st display_fsm = SENSOR_VALUE_DISPLAY_ST;
+
+static uint8_t width, height;
+static char buf[20];
+
 /**
  * @brief button callback
  * 
@@ -59,6 +70,11 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb,
 		    uint32_t pins)
 {
 	LOG_INF("Button pressed at %" PRIu32 "", k_cycle_get_32());
+	if(display_fsm < FPRCAST_2_DISPLAY_ST){
+		display_fsm++;
+	} else {
+		display_fsm = SENSOR_VALUE_DISPLAY_ST;
+	}
 }
 
 /**
@@ -102,33 +118,82 @@ extern void sampling_function(struct k_timer *timer_id){
 	k_work_submit(&sampling_work);
 }
 
-extern void thread_display(void* v1, void *v2, void *v3){
-	uint8_t width, height;
-	char buf[20];
+//TODO: start sampling timer the first time entering into this state and
+//		stop it when changing to next state
+void display_sensor_st(){
 
+	cfb_framebuffer_clear(display_device, false);
+	cfb_framebuffer_set_font(display_device, 0);
+
+	// Display Weather Assistant in lines 1 and 2
+	cfb_print(display_device, ">>Ambient:",0,0);
+
+	cfb_framebuffer_set_font(display_device, 1);
+
+	// Display temperature in line 3
+	sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
+	cfb_print(display_device, buf, 0, 2 * height);
+
+	// Display humidity in line 4
+	sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
+	cfb_print(display_device, buf, 0, 3 * height);
+
+	// Finalize frame to load it into RAM to be displayed
+	cfb_framebuffer_finalize(display_device);
+
+}
+
+void display_forecast_1_st(){
+
+	cfb_framebuffer_clear(display_device, false);
+	cfb_framebuffer_set_font(display_device, 0);
+
+	// Display Weather Assistant in lines 1 and 2
+	cfb_print(display_device, "forecast 1",0,0);
+
+	// Finalize frame to load it into RAM to be displayed
+	cfb_framebuffer_finalize(display_device);
+
+}
+
+void display_forecast_2_st(){
+
+	cfb_framebuffer_clear(display_device, false);
+	cfb_framebuffer_set_font(display_device, 0);
+
+	// Display Weather Assistant in lines 1 and 2
+	cfb_print(display_device, "forecast 2",0,0);
+
+	// Finalize frame to load it into RAM to be displayed
+	cfb_framebuffer_finalize(display_device);
+
+}
+
+extern void thread_display(void* v1, void *v2, void *v3){
 	// get display width and height of font with index 0
 	cfb_get_font_size(display_device, 0, &width, &height);
 
 	while (1) {
-		cfb_framebuffer_clear(display_device, false);
-		cfb_framebuffer_set_font(display_device, 0);
-
-		// Display Weather Assistant in lines 1 and 2
-		cfb_print(display_device, ">>Ambient:",0,0);
-
-		cfb_framebuffer_set_font(display_device, 1);
-
-		// Display temperature in line 3
-		sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
-		cfb_print(display_device, buf, 0, 2 * height);
-
-		// Display humidity in line 4
-		sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
-		cfb_print(display_device, buf, 0, 3 * height);
-
-		// Finalize frame to load it into RAM to be displayed
-		cfb_framebuffer_finalize(display_device);
+		switch (display_fsm)
+		{
+		case SENSOR_VALUE_DISPLAY_ST:
+			LOG_INF("SENSOR_VALUE_DISPLAY_ST");
+			display_sensor_st(height);
+			break;
+		case FORCAST_1_DISPLAY_ST:
+			LOG_INF("FORCAST_1_DISPLAY_ST");
+			display_forecast_1_st(height);
+			break;
 		
+		case FPRCAST_2_DISPLAY_ST:
+			LOG_INF("FORCAST_2_DISPLAY_ST");
+			display_forecast_2_st(height);
+			break;
+
+		default:
+			break;
+		}
+
 		k_msleep(500);
 	}
 }
