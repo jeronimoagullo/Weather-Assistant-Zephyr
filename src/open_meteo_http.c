@@ -7,14 +7,14 @@
 
  * @version 0.1
  * @date 2024-01-29
- * 
+ *
  * @copyright Copyright (c) 2024
- * 
+ *
  */
 
 
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/socket.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(open_meteo, LOG_LEVEL_DBG);
@@ -67,7 +67,7 @@ void http_get_open_meteo_forcast(void){
 
 	dump_addrinfo(result);
 
-	sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol); 
+	sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 
 	CHECK(sock);
 	LOG_INF("sock = %d", sock);

@@ -11,6 +11,9 @@
 #ifndef __WIFI_H__
 #define __WIFI_H__
 
+#define WIFI_SSID "<SSID>"
+#define WIFI_PSK  "<PASSWORD>"
+
 void init_wifi(void);
 
 /**

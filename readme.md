@@ -34,25 +34,16 @@ Open your terminal and run the following command:
 git clone https://github.com/zephyrproject-rtos/zephyr.git
 ```
 
-check out the branch into **version 3.5** to get a stable Zephyr version instead of developing directly into main:
+check out the branch into **version 4.0.0** to get a stable Zephyr version instead of developing directly into main:
 ```bash
-git checkout v3.5-branch
+git checkout v4.0.0-branch
 ```
 
 ### 3. Install Zephyr SDK:
 
-The Zephyr SDK can be downloaded from the [official Zephyr repository](https://github.com/zephyrproject-rtos/sdk-ng/tags). Download the **v0.16.4** version which is the suitable SDK for Zephyr 3.5 release.
+The Zephyr SDK can be downloaded from the [official Zephyr repository](https://github.com/zephyrproject-rtos/sdk-ng/tags). Download the **v0.17.0** version which is the suitable SDK for Zephyr 4.0.0 release. However, I recommend to use the new `west sdk install` tool, with this simple command the proper SDK will be installed.
 
-### 4. Set Up Environment Variables:
-
-Add the Zephyr binary directory to your PATH and set the `ZEPHYR_BASE` variable. For example:
-
-```bash
-export ZEPHYR_SDK_INSTALL_DIR=<path_to_sdk>
-source <path_to_zephyr>/zephyr-env.sh
-```
-
-### 5. Choose a Board:
+### 4. Choose a Board:
 
 Navigate to your project directory and run:
 
@@ -62,16 +53,11 @@ west update
 ```
 
 ## 🎯 Configuration
-In order to use the WIFI interface, you need to set your WIFI setting in the `src/wifi.c` file. The SSID and password must be specified in the following code:
+In order to use the WIFI interface, you need to set your WIFI setting in the `src/wifi.h` file. The SSID and password must be specified in the following macros:
 
 ```c
-// Wifi parameters
-wifi_conn_params.ssid = "<your_ssid>";
-wifi_conn_params.ssid_length = strlen("<your_ssid>");
-wifi_conn_params.psk  = "<your_password>";
-wifi_conn_params.psk_length  = strlen("<your_password>");
-wifi_conn_params.channel = WIFI_CHANNEL_ANY;
-wifi_conn_params.security = WIFI_SECURITY_TYPE_PSK ;
+#define WIFI_SSID "<SSID>"
+#define WIFI_PSK  "<PASSWORD>"
 ```
 
 ## 🛠️ Build the project
@@ -82,9 +68,9 @@ Choose your board by running:
 west build -b <your_board>
 ```
 
-The first version of the weather assistant is developed for STM32L4S5 board. Then, run the following command:
+The first version of the weather assistant is developed for STM32L4S5 board with the display `ssd1306_128x64`. Then, run the following command:
 ```
-west build -b b_l4s5i_iot01a
+west build -b b_l4s5i_iot01a --shield ssd1306_128x64
 ```
 
 ## ⚡️ Flash
