@@ -12,6 +12,13 @@
 #ifndef __OPEN_METEO_H__
 #define __OPEN_METEO_H__
 
+struct weather_t {
+    float temperature;
+    float humidity;
+};
+
+extern struct k_msgq weather_q;
+
 /**
  * @brief Function that executes a HTTP GET request to open-meteo
  * 		website: https://open-meteo.com/

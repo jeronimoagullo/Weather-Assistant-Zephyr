@@ -15,9 +15,14 @@
 
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <zephyr/data/json.h>
+#include <zephyr/net/http/client.h>
+
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(open_meteo, LOG_LEVEL_DBG);
+
+#include "open_meteo_http.h"
 
 /* HTTP server to connect to */
 #define SERVER_HOST "api.open-meteo.com"
@@ -26,23 +31,58 @@ LOG_MODULE_REGISTER(open_meteo, LOG_LEVEL_DBG);
 #define SERVER_PORT "80"
 
 /* HTTP path to request */
-#define HTTP_PATH "/v1/forecast?latitude=41.5744&longitude=-3.2042&current=temperature_2m"
-
-/* Build request message */
-#define REQUEST "GET " HTTP_PATH " HTTP/1.0\r\nHost: " SERVER_HOST "\r\n\r\n"
+#define HTTP_PATH "/v1/forecast?latitude=52.52&longitude=13.41&current=temperature_2m,relative_humidity_2m"
 
 #define SSTRLEN(s) (sizeof(s) - 1)
 #define CHECK(r) { if (r == -1) { LOG_ERR("Error: " #r "\n"); return; } }
-static char response[1024];
 
+#define RESP_OFFSET 56
+#define RESP_LEN (RESP_OFFSET - 9)
 
-void dump_addrinfo(const struct addrinfo *ai)
+static uint8_t recv_buf_ipv4[NET_IPV4_MTU];
+
+K_MSGQ_DEFINE(weather_q, sizeof(struct weather_t), 2, 1);
+
+static int weather_parse_data(uint8_t *weather_update, struct weather_t *weather_data)
 {
-	LOG_INF("addrinfo @%p: ai_family=%d, ai_socktype=%d, ai_protocol=%d, "
-	       "sa_family=%d, sin_port=%x",
-	       ai, ai->ai_family, ai->ai_socktype, ai->ai_protocol,
-	       ai->ai_addr->sa_family,
-	       ((struct sockaddr_in *)ai->ai_addr)->sin_port);
+    int ret;
+
+    memset(weather_data, 0, sizeof(struct weather_t));
+
+    ret = sscanf((char *)weather_update,
+                 "\"temperature_2m\":%f,\"relative_humidity_2m\":%f",
+                 &weather_data->temperature,
+                 &weather_data->humidity);
+
+    if (ret != 2) {
+        printf("Failed to parse data.\n");
+    }
+
+	return ret;
+}
+
+static int http_response_cb(struct http_response *rsp,
+		       enum http_final_call final_data,
+		       void *user_data)
+{
+	char weather_update[RESP_LEN];
+	struct weather_t weather_data;
+
+	uint16_t weather_offset = rsp->body_frag_len - RESP_OFFSET;
+
+	memcpy(weather_update, rsp->body_frag_start + weather_offset, RESP_LEN);
+	weather_update[RESP_LEN] = '\0';
+
+	weather_parse_data(weather_update, &weather_data);
+
+	LOG_INF("Temperature: %.1f°C", weather_data.temperature);
+	LOG_INF("Relative Humidity: %.1f%%", weather_data.humidity);
+
+	if (k_msgq_put(&weather_q, &weather_data, K_NO_WAIT) != 0) {
+		LOG_ERR("Failed to put new input event");
+	}
+
+	return 0;
 }
 
 void http_get_open_meteo_forcast(void){
@@ -65,8 +105,6 @@ void http_get_open_meteo_forcast(void){
 		return;
 	}
 
-	dump_addrinfo(result);
-
 	sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 
 	CHECK(sock);
@@ -81,22 +119,24 @@ void http_get_open_meteo_forcast(void){
 		LOG_INF("Connection successed");
 	}
 
+	struct http_request req;
+	memset(&req, 0, sizeof(req));
 
-	CHECK(send(sock, REQUEST, SSTRLEN(REQUEST), 0));
+	req.method = HTTP_GET;
+	req.url = HTTP_PATH;
+	req.host = SERVER_HOST;
+	req.protocol = "HTTP/1.1";
+	req.response = http_response_cb;
+	req.recv_buf = recv_buf_ipv4;
+	req.recv_buf_len = sizeof(recv_buf_ipv4);
 
-	int len = recv(sock, response, sizeof(response) - 1, 0);
-
-	if (len < 0) {
-		LOG_ERR("Error reading response");
-		return;
+	ret = http_client_req(sock, &req, CONFIG_NET_SOCKETS_DNS_TIMEOUT, "GET");
+	if (ret < 0) {
+		LOG_ERR("Client error %d", ret);
 	}
 
-	response[len] = 0;
-	LOG_INF("Response:\n%s\n", response);
+	close(sock);
 
-	//TODO: Parse json response into variables
-
-	(void)close(sock);
 	LOG_INF("socket closed");
 	return;
 }
