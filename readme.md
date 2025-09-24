@@ -81,6 +81,23 @@ Flash it to your board with:
 west flash
 ```
 
+##  🤖 Build and run with native_sim board
+
+```bash
+$ cd Weather-Assistant-Zephyr
+$ west build -p always -b native_sim .
+```
+
+### Setup NAT/masquerading on host to access Internet:
+Follow: [Networking with QEMU](https://docs.zephyrproject.org/latest/connectivity/networking/qemu_setup.html)
+
+```bash
+$ west build -t run
+```
+
+## Running with naitve sim
+![Native sim](img/native_sim.gif)
+
 ## 📅 TODO list
 - [x] based code for STM32L4S5 board (basic Zephyr structure)
 - [x] Read temperature and humidty from bme280 sensor 

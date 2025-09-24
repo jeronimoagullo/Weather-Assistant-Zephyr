@@ -28,12 +28,14 @@ LOG_MODULE_REGISTER(weather_assistant, LOG_LEVEL_DBG);
 #define TEMP_SENSOR DT_ALIAS(tempsensor)
 const struct device *temp_humd_device = DEVICE_DT_GET(TEMP_SENSOR);
 
+#if !defined(CONFIG_BOARD_NATIVE_SIM)
 #define CTRL_BUTTON DT_ALIAS(sw0)
 const struct device *ctrl_button = DEVICE_DT_GET(CTRL_BUTTON);
 
 static const struct gpio_dt_spec button = 
 				GPIO_DT_SPEC_GET_OR(CTRL_BUTTON, gpios,{0});
 static struct gpio_callback button_cb_data;
+#endif
 
 const struct device *display_device;
 
@@ -105,6 +107,8 @@ extern void sampling_function(struct k_timer *timer_id){
 extern void thread_display(void* v1, void *v2, void *v3){
 	uint8_t width, height;
 	char buf[20];
+	struct weather_t weather_data;
+	memset(&weather_data, 0, sizeof(struct weather_t));
 
 	// get display width and height of font with index 0
 	cfb_get_font_size(display_device, 0, &width, &height);
@@ -118,13 +122,25 @@ extern void thread_display(void* v1, void *v2, void *v3){
 
 		cfb_framebuffer_set_font(display_device, 1);
 
-		// Display temperature in line 3
-		sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
-		cfb_print(display_device, buf, 0, 2 * height);
+		if (IS_ENABLED(CONFIG_BOARD_NATIVE_SIM)) {
+			k_msgq_get(&weather_q, &weather_data, K_NO_WAIT);
 
-		// Display humidity in line 4
-		sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
-		cfb_print(display_device, buf, 0, 3 * height);
+			// Display temperature in line 3
+			sprintf(buf, "%.02fC", weather_data.temperature);
+			cfb_print(display_device, buf, 0, 2 * height);
+
+			// Display humidity in line 4
+			sprintf(buf, "%.02f%%", weather_data.humidity);
+			cfb_print(display_device, buf, 0, 3 * height);
+		} else {
+			// Display temperature in line 3
+			sprintf(buf, "%.02fC", sensor_value_to_double(&temperature_SV));
+			cfb_print(display_device, buf, 0, 2 * height);
+
+			// Display humidity in line 4
+			sprintf(buf, "%.02f%%", sensor_value_to_double(&humidity_SV));
+			cfb_print(display_device, buf, 0, 3 * height);
+		}
 
 		// Finalize frame to load it into RAM to be displayed
 		cfb_framebuffer_finalize(display_device);
@@ -141,6 +157,7 @@ int main(void)
 	uint8_t ppt;
 	int ret;
 
+#if !defined(CONFIG_BOARD_NATIVE_SIM)
 	if (!gpio_is_ready_dt(&button)) {
 		LOG_ERR("Error: button device %s is not ready",
 		       button.port->name);
@@ -164,7 +181,7 @@ int main(void)
 
 	gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
 	gpio_add_callback(button.port, &button_cb_data);
-	
+#endif
 
 	/* Init display */
 	display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
@@ -190,7 +207,7 @@ int main(void)
 	display_blanking_off(display_device);
 
 	x_res = cfb_get_display_parameter(display_device, CFB_DISPLAY_WIDTH);
-	y_res = cfb_get_display_parameter(display_device, CFB_DISPLAY_HEIGH);
+	y_res = cfb_get_display_parameter(display_device, CFB_DISPLAY_HEIGHT);
 	rows = cfb_get_display_parameter(display_device, CFB_DISPLAY_ROWS);
 	cols = cfb_get_display_parameter(display_device, CFB_DISPLAY_COLS);
 	ppt = cfb_get_display_parameter(display_device, CFB_DISPLAY_PPT);
@@ -249,7 +266,8 @@ int main(void)
 	/* start the sampling with period of 500 ms */
 	k_timer_start(&sampling_timer, K_NO_WAIT, K_MSEC(500));
 
-	init_wifi();
+	if(IS_ENABLED(CONFIG_WIFI))
+		init_wifi();
 
 	http_get_open_meteo_forcast();
 

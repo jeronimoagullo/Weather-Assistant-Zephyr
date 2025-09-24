@@ -1,0 +1,18 @@
+/{
+	aliases {
+		tempsensor = &amd_sb_tsi;
+	};
+};
+
+&i2c0{
+    amd_sb_tsi: amd_sb_tsi@74 {
+        compatible = "amd,sb-tsi";
+        reg = <0x74>;
+    };
+};
+
+&sdl_dc {
+	compatible = "zephyr,sdl-dc";
+	height = <64>;
+	width = <128>;
+};
